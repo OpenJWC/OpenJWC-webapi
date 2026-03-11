@@ -6,6 +6,7 @@ import logging
 # 引入我们之前写好的配置和数据库服务
 from app.core.config import BIN_DIR, DATA_DIR
 from app.services.sql_db_service import db
+from app.services.vector_db_service import vector_db
 
 # 配置简单的日志，这样你在服务器上用 docker logs 就能看到爬虫运行情况
 logging.basicConfig(
@@ -15,6 +16,34 @@ logging.basicConfig(
 # 定义路径
 CRAWLER_BIN = BIN_DIR / "jwc-crawler"
 OUTPUT_JSON = DATA_DIR / "output.json"
+
+
+def sync_vector_db():
+    """将 SQL 数据库中的数据单向同步到 VectorDB"""
+    logging.info("开始进行 向量数据库 (VectorDB) 同步...")
+
+    try:
+        all_notices = db.get_all_notices()
+        total_count = len(all_notices)
+        logging.info(f"从 SQL 数据库读取到 {total_count} 条记录，准备核对向量库。")
+        new_embedded_count = 0
+        for notice in all_notices:
+            is_new = vector_db.process_and_index_notice(
+                {
+                    "id": notice["id"],
+                    "title": notice["title"],
+                    "content_text": notice["content_text"],
+                }
+            )
+            if is_new:
+                new_embedded_count += 1
+
+        logging.info(
+            f"向量库同步完成！跳过了 {total_count - new_embedded_count} 条，实际新增向量化 {new_embedded_count} 条。"
+        )
+
+    except Exception as e:
+        logging.error(f"向量数据库同步失败: {e}")
 
 
 def run_crawler_job():
@@ -37,6 +66,10 @@ def run_crawler_job():
             logging.info(
                 f"数据库同步完成: 新增 {sync_result['new_added']} 条，更新 {sync_result['updated']} 条。"
             )
+            if sync_result["new_added"] > 0 or sync_result["updated"] > 0:
+                sync_vector_db()
+            else:
+                logging.info("SQL 数据无变化，跳过向量数据库同步。")
         else:
             logging.error("未找到 output.json，爬虫可能未成功输出文件。")
 

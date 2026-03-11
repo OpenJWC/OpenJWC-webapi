@@ -19,6 +19,32 @@ class DBService:
         conn.row_factory = sqlite3.Row
         return conn
 
+    def get_all_notices(self) -> list[dict]:
+        """返回格式: [{'id': '哈希值', 'title': '...', 'text': '...'}]"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT id, title, content_text
+                FROM notices
+                ORDER BY date DESC, id DESC
+                """
+            )
+
+            rows = cursor.fetchall()
+
+            results = []
+            for row in rows:
+                results.append(
+                    {
+                        "id": row["id"],
+                        "title": row["title"],
+                        "content_text": row["content_text"],
+                    }
+                )
+
+            return results
+
     def init_db(self):
         """初始化数据库表"""
         create_table_sql = """

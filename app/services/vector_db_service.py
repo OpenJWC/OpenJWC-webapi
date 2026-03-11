@@ -54,7 +54,7 @@ class VectorDBService:
         notice_id = notice["id"]  # 这里的 id 是 Rust 传来的全文哈希
         if self.check_notice_exists(notice_id):
             print(f"资讯 [{notice['title']}] ({notice_id}) 内容未变，跳过。")
-            return
+            return False
 
         print(f"开始处理并向量化新资讯 [{notice['title']}]...")
         content = notice["text"]
@@ -72,6 +72,7 @@ class VectorDBService:
                 metadata={"source_id": notice_id, "title": notice["title"]},
             )
         print(f"资讯 [{notice['title']}] 入库完成。")
+        return True
 
 
 vector_db = VectorDBService()
