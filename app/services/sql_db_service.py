@@ -5,6 +5,9 @@ from pathlib import Path
 from typing import List, Dict, Optional
 
 from app.core.config import ROOT_DIR, NOTICE_DB, NOTICE_JSON
+from app.utils.logging_manager import setup_logger
+
+logger = setup_logger("sql_db_logs")
 
 
 class DBService:
@@ -17,15 +20,16 @@ class DBService:
         conn = sqlite3.connect(self.db_path)
         # 将行数据转化为字典，而不是粗糙的元组
         conn.row_factory = sqlite3.Row
+        logger.debug("sql数据库连接成功")
         return conn
 
     def get_all_notices(self) -> list[dict]:
-        """返回格式: [{'id': '哈希值', 'title': '...', 'text': '...'}]"""
+        """返回格式: [{'id': '...', 'title': '...', 'content_text': '...', 'date': '...'}]"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                SELECT id, title, content_text
+                SELECT id, title, content_text, date
                 FROM notices
                 ORDER BY date DESC, id DESC
                 """
@@ -40,6 +44,7 @@ class DBService:
                         "id": row["id"],
                         "title": row["title"],
                         "content_text": row["content_text"],
+                        "date": row["date"],
                     }
                 )
 
@@ -47,6 +52,7 @@ class DBService:
 
     def init_db(self):
         """初始化数据库表"""
+        logger.info("正在尝试初始化sql数据库")
         create_table_sql = """
         CREATE TABLE IF NOT EXISTS notices (
             id TEXT PRIMARY KEY,
@@ -64,6 +70,7 @@ class DBService:
             cursor = conn.cursor()
             cursor.execute(create_table_sql)
             conn.commit()
+            logger.info("sql数据库初始化完成")
 
     def drop_table(self):
         """如果想更彻底，直接删除表结构"""
@@ -71,14 +78,16 @@ class DBService:
             cursor = conn.cursor()
             cursor.execute("DROP TABLE IF EXISTS notices")
             conn.commit()
-            print("表结构已删除。")
+            logger.info("表结构已删除。")
             self.init_db()  # 重新创建干净的表
 
     def sync_from_json(self, json_file_path: str) -> Dict[str, int]:
         """
         核心功能：从爬虫生成的 JSON 文件读取数据并同步到数据库中。
         """
+        logger.warning("正在尝试从JSON文件同步数据库")
         if not os.path.exists(json_file_path):
+            logger.error("JSON文件不存在")
             return {"error": "JSON 文件不存在"}
 
         with open(json_file_path, "r", encoding="utf-8") as f:
@@ -124,6 +133,7 @@ class DBService:
                         ),
                     )
                     new_notices_count += 1
+                    logger.info(f"sql数据库注册新通知：{item['id']}")
                 else:
                     # 记录存在，但这可能是因为爬虫一开始抓不到正文(content为null)，
                     # 后来重新抓取时才拿到了正文，所以我们要支持"更新 content"
@@ -133,6 +143,7 @@ class DBService:
                             (text, attachments, item["id"]),
                         )
                         updated_notices_count += 1
+                        logger.info(f"sql数据库更新旧通知：{item['id']}")
 
             conn.commit()
 
@@ -153,6 +164,8 @@ class DBService:
                 (limit, offset),
             )
             rows = cursor.fetchall()
+            if rows:
+                logger.info("资讯查询成功")
             return [dict(row) for row in rows]
 
     def get_notice_content(self, notice_id: str) -> Optional[dict]:
@@ -174,10 +187,10 @@ if __name__ == "__main__":
     import sys
 
     if "--reset" in sys.argv:
-        print("正在进行重置同步模式...")
+        logger.info("正在进行重置同步模式...")
         db.drop_table()
     else:
         db.init_db()
 
     result = db.sync_from_json(NOTICE_JSON)
-    print(f"同步完成: {result}")
+    logger.info(f"同步完成: {result}")

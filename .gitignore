@@ -11,7 +11,7 @@ wheels/
 
 data/*
 !data/.gitkeep
-logs/*.log
+logs/*
 !/logs/.gitkeep
 bin/*
 !bin/.gitkeep

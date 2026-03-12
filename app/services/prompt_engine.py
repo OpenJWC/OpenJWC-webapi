@@ -1,3 +1,8 @@
+from app.utils.logging_manager import setup_logger
+
+logger = setup_logger("prompt_engine_logs")
+
+
 class PromptEngine:
     @staticmethod
     def build_chat_prompt(history, user_query, context=None):
@@ -15,4 +20,6 @@ class PromptEngine:
 
         messages.insert(0, {"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": user_query})
+        logger.info(f"已注入系统提示词：{system_prompt}")
+        logger.debug(messages)
         return messages

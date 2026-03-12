@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Query
 from app.models.schemas import NoticeListResponse
 from app.services.sql_db_service import db  # 导入我们在上一节写的单例数据库服务
+from app.utils.logging_manager import setup_logger
+
+logger = setup_logger("notice_api_logs")
 
 router = APIRouter()
 
@@ -13,6 +16,7 @@ async def get_latest_notices(
     """
     获取教务处最新资讯列表（支持分页）
     """
+    logger.info(f"获取教务处最新资讯列表，页码: {page},数量: {size}")
     # 1. 计算数据库查询的偏移量 (Offset)
     # 比如：第1页 -> offset 0; 第2页 -> offset 20 (假设size=20)
     offset = (page - 1) * size
