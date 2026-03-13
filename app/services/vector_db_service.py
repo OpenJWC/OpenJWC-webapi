@@ -1,5 +1,6 @@
 import os
 import chromadb
+from datetime import date
 from zhipuai import ZhipuAI
 from datetime import datetime
 from app.utils.logging_manager import setup_logger
@@ -53,9 +54,9 @@ class VectorDBService:
             metadatas=[metadata],
         )
 
-    def search(self, query: str, n_results: int = 3):
+    def search(self, query: str, n_results: int = 10):
         """语义搜索"""
-        query_vector = self.get_embedding(query)
+        query_vector = self.get_embedding(f"{query}, 今日日期{date.today()}")
         results = collection.query(query_embeddings=[query_vector], n_results=n_results)
 
         # 安全隐患修复：如果数据库为空，results["documents"][0] 会报错 IndexError
