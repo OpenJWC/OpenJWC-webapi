@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.api import chat, notices
+from app.api import chat, notices, unbind
 import os
 
 ROOT_DIR = os.getcwd()
@@ -11,6 +11,7 @@ app = FastAPI(title="教务处通知助手")
 # 注册各个模块的路由
 app.include_router(chat.router, prefix="/api", tags=["AI聊天"])
 app.include_router(notices.router, prefix="/api", tags=["资讯管理"])
+app.include_router(unbind.router, prefix="/api", tags=["客户端解绑"])
 
 
 @app.get("/")
