@@ -1,0 +1,142 @@
+from typing import List, Dict, Optional
+from app.services.db_interface import DBInterface, logger
+import json
+import os
+
+
+class SQLMixin:
+    def get_all_notices(self: DBInterface) -> list[dict]:
+        """返回格式: [{'id': '...', 'title': '...', 'content_text': '...', 'date': '...'}]"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT id, title, content_text, date
+                FROM notices
+                ORDER BY date DESC, id DESC
+                """
+            )
+
+            rows = cursor.fetchall()
+
+            results = []
+            for row in rows:
+                results.append(
+                    {
+                        "id": row["id"],
+                        "title": row["title"],
+                        "content_text": row["content_text"],
+                        "date": row["date"],
+                    }
+                )
+
+            return results
+
+    def drop_table(self: DBInterface):
+        """如果想更彻底，直接删除表结构"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DROP TABLE IF EXISTS notices")
+            conn.commit()
+            logger.info("表结构已删除。")
+            self.init_db()  # 重新创建干净的表
+
+    def sync_from_json(self: DBInterface, json_file_path: str) -> Dict[str, int]:
+        """
+        核心功能：从爬虫生成的 JSON 文件读取数据并同步到数据库中。
+        """
+        logger.warning("正在尝试从JSON文件同步数据库")
+        if not os.path.exists(json_file_path):
+            logger.error("JSON文件不存在")
+            return {"error": "JSON 文件不存在"}
+
+        with open(json_file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        new_notices_count = 0
+        updated_notices_count = 0
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            for item in data:
+                # 检查这个 ID 是否已经在数据库里了
+                cursor.execute(
+                    "SELECT id, content_text FROM notices WHERE id = ?", (item["id"],)
+                )
+                existing_record = cursor.fetchone()
+                # 在循环内部
+                content_data = item.get("content") or {}  # 如果是 null 则给空字典
+                text = content_data.get("text")
+                # 附件列表转为 JSON 字符串存储
+                attachments = json.dumps(
+                    content_data.get("attachment_urls", []), ensure_ascii=False
+                )
+
+                if not existing_record:
+                    # 这是一条全新的通知
+                    cursor.execute(
+                        """
+                        INSERT INTO notices (id, label, title, date, detail_url, is_page, content_text, attachments, is_pushed)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                        (
+                            item["id"],
+                            item["label"],
+                            item["title"],
+                            item["date"],
+                            item["detail_url"],
+                            item["is_page"],
+                            text,
+                            attachments,
+                            0,  # 新通知默认为未推送
+                        ),
+                    )
+                    new_notices_count += 1
+                    logger.info(f"sql数据库注册新通知：{item['id']}")
+                else:
+                    # 记录存在，但这可能是因为爬虫一开始抓不到正文(content为null)，
+                    # 后来重新抓取时才拿到了正文，所以我们要支持"更新 content"
+                    if text and not existing_record["content_text"]:
+                        cursor.execute(
+                            "UPDATE notices SET content_text = ?, attachments = ? WHERE id = ?",
+                            (text, attachments, item["id"]),
+                        )
+                        updated_notices_count += 1
+                        logger.info(f"sql数据库更新旧通知：{item['id']}")
+
+            conn.commit()
+
+        return {"new_added": new_notices_count, "updated": updated_notices_count}
+
+    def get_notices_for_app(
+        self: DBInterface, limit: int = 20, offset: int = 0
+    ) -> List[dict]:
+        """供 FastAPI 路由调用的查询接口（给移动端的列表页面）"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            # 按照日期倒序排列，拿最新的
+            cursor.execute(
+                """
+                SELECT id, label, title, date, detail_url, is_page 
+                FROM notices 
+                ORDER BY date DESC, id DESC
+                LIMIT ? OFFSET ?
+            """,
+                (limit, offset),
+            )
+            rows = cursor.fetchall()
+            if rows:
+                logger.info("资讯查询成功")
+            return [dict(row) for row in rows]
+
+    def get_notice_content(self: DBInterface, notice_id: str) -> Optional[dict]:
+        """供 LLM (大语言模型) 提取正文时使用"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT title, content_text, date FROM notices WHERE id = ?",
+                (notice_id,),
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None

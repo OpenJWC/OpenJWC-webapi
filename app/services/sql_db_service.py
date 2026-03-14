@@ -1,16 +1,13 @@
 import sqlite3
-import json
-import os
-from pathlib import Path
-from typing import List, Dict, Optional
+from app.core.config import NOTICE_DB, NOTICE_JSON
+from app.services.db_interface import logger
+from app.services.sql_mixin import SQLMixin
+from app.services.validation_mixin import ValidationMixin
 
-from app.core.config import ROOT_DIR, NOTICE_DB, NOTICE_JSON
-from app.utils.logging_manager import setup_logger
-
-logger = setup_logger("sql_db_logs")
+import cmd
 
 
-class DBService:
+class DBService(SQLMixin, ValidationMixin):
     def __init__(self, db_path=NOTICE_DB):
         self.db_path = db_path
         self.init_db()
@@ -23,37 +20,10 @@ class DBService:
         logger.debug("sql数据库连接成功")
         return conn
 
-    def get_all_notices(self) -> list[dict]:
-        """返回格式: [{'id': '...', 'title': '...', 'content_text': '...', 'date': '...'}]"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT id, title, content_text, date
-                FROM notices
-                ORDER BY date DESC, id DESC
-                """
-            )
-
-            rows = cursor.fetchall()
-
-            results = []
-            for row in rows:
-                results.append(
-                    {
-                        "id": row["id"],
-                        "title": row["title"],
-                        "content_text": row["content_text"],
-                        "date": row["date"],
-                    }
-                )
-
-            return results
-
     def init_db(self):
         """初始化数据库表"""
         logger.info("正在尝试初始化sql数据库")
-        create_table_sql = """
+        create_notices_sql = """
         CREATE TABLE IF NOT EXISTS notices (
             id TEXT PRIMARY KEY,
             label TEXT,
@@ -66,122 +36,66 @@ class DBService:
             is_pushed BOOLEAN DEFAULT 0  -- 0代表未推送，1代表已推送
         )
         """
+        create_keys_sql = """
+        CREATE TABLE IF NOT EXISTS api_keys (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            key_string TEXT UNIQUE NOT NULL,
+            owner_name TEXT,
+            is_active BOOLEAN DEFAULT 1,
+            max_devices INTEGER DEFAULT 3,
+            bound_devices TEXT DEFAULT '[]',
+            total_requests INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+        create_index_sql = (
+            "CREATE INDEX IF NOT EXISTS idx_key_string ON api_keys(key_string);"
+        )
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(create_table_sql)
+            cursor.execute(create_notices_sql)
+            cursor.execute(create_keys_sql)
+            cursor.execute(create_index_sql)
             conn.commit()
             logger.info("sql数据库初始化完成")
-
-    def drop_table(self):
-        """如果想更彻底，直接删除表结构"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("DROP TABLE IF EXISTS notices")
-            conn.commit()
-            logger.info("表结构已删除。")
-            self.init_db()  # 重新创建干净的表
-
-    def sync_from_json(self, json_file_path: str) -> Dict[str, int]:
-        """
-        核心功能：从爬虫生成的 JSON 文件读取数据并同步到数据库中。
-        """
-        logger.warning("正在尝试从JSON文件同步数据库")
-        if not os.path.exists(json_file_path):
-            logger.error("JSON文件不存在")
-            return {"error": "JSON 文件不存在"}
-
-        with open(json_file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-
-        new_notices_count = 0
-        updated_notices_count = 0
-
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-
-            for item in data:
-                # 检查这个 ID 是否已经在数据库里了
-                cursor.execute(
-                    "SELECT id, content_text FROM notices WHERE id = ?", (item["id"],)
-                )
-                existing_record = cursor.fetchone()
-                # 在循环内部
-                content_data = item.get("content") or {}  # 如果是 null 则给空字典
-                text = content_data.get("text")
-                # 附件列表转为 JSON 字符串存储
-                attachments = json.dumps(
-                    content_data.get("attachment_urls", []), ensure_ascii=False
-                )
-
-                if not existing_record:
-                    # 这是一条全新的通知
-                    cursor.execute(
-                        """
-                        INSERT INTO notices (id, label, title, date, detail_url, is_page, content_text, attachments, is_pushed)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                        (
-                            item["id"],
-                            item["label"],
-                            item["title"],
-                            item["date"],
-                            item["detail_url"],
-                            item["is_page"],
-                            text,
-                            attachments,
-                            0,  # 新通知默认为未推送
-                        ),
-                    )
-                    new_notices_count += 1
-                    logger.info(f"sql数据库注册新通知：{item['id']}")
-                else:
-                    # 记录存在，但这可能是因为爬虫一开始抓不到正文(content为null)，
-                    # 后来重新抓取时才拿到了正文，所以我们要支持"更新 content"
-                    if text and not existing_record["content_text"]:
-                        cursor.execute(
-                            "UPDATE notices SET content_text = ?, attachments = ? WHERE id = ?",
-                            (text, attachments, item["id"]),
-                        )
-                        updated_notices_count += 1
-                        logger.info(f"sql数据库更新旧通知：{item['id']}")
-
-            conn.commit()
-
-        return {"new_added": new_notices_count, "updated": updated_notices_count}
-
-    def get_notices_for_app(self, limit: int = 20, offset: int = 0) -> List[dict]:
-        """供 FastAPI 路由调用的查询接口（给移动端的列表页面）"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            # 按照日期倒序排列，拿最新的
-            cursor.execute(
-                """
-                SELECT id, label, title, date, detail_url, is_page 
-                FROM notices 
-                ORDER BY date DESC, id DESC
-                LIMIT ? OFFSET ?
-            """,
-                (limit, offset),
-            )
-            rows = cursor.fetchall()
-            if rows:
-                logger.info("资讯查询成功")
-            return [dict(row) for row in rows]
-
-    def get_notice_content(self, notice_id: str) -> Optional[dict]:
-        """供 LLM (大语言模型) 提取正文时使用"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT title, content_text, date FROM notices WHERE id = ?",
-                (notice_id,),
-            )
-            row = cursor.fetchone()
-            return dict(row) if row else None
 
 
 # 单例模式导出，方便全局其他地方使用同一个实例
 db = DBService()
+
+
+class SQLCLI(cmd.Cmd):
+    prompt = "sqlcli>>> "
+
+    def do_q(self, arg):
+        return True
+
+    def do_valid(self, arg: str):
+        args = arg.split()
+        isvalid, info = db.validate_and_use_key(key_string=args[0], device_id=args[1])
+        logger.info("API VALIDATION: " + str(isvalid))
+        logger.info("info: " + info)
+
+    def do_create(self, arg: str):
+        args = arg.split()
+        new_key = db.create_api_key(owner_name=args[0], max_devices=int(args[1]))
+        logger.info("NEW KEY: " + new_key)
+
+    def do_show(self, arg: str):
+        keys = db.get_all_api_keys()
+        for key in keys:
+            print(key)
+
+    def do_toggle(self, arg: str):
+        args = arg.split()
+        db.toggle_key_status(key_id=int(args[0]), is_active=(args[1] != "0"))
+
+    def do_delete(self, arg: str):
+        ids = arg.split()
+        for id in ids:
+            deleted = db.delete_api_key(key_id=int(id))
+            logger.info(f"移除{id}: {deleted}")
+
 
 if __name__ == "__main__":
     import sys
@@ -194,3 +108,4 @@ if __name__ == "__main__":
 
     result = db.sync_from_json(NOTICE_JSON)
     logger.info(f"同步完成: {result}")
+    SQLCLI().cmdloop()

@@ -1,8 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from app.models.schemas import ChatRequest
-from app.services.ai_service import client
 from app.utils.logging_manager import setup_logger
+from app.api.dependencies import verify_api_key
 import app.services.ai_service as ai_service
 
 logger = setup_logger("chat_api_logs")
@@ -11,10 +11,11 @@ router = APIRouter()
 
 
 @router.post("/chat")
-async def chat_with_notice(request: ChatRequest):
-    logger.info("接受到LLM聊天请求")
+async def chat_with_notice(
+    request: ChatRequest, valid_token: str = Depends(verify_api_key)
+):
+    logger.info(f"接受到LLM聊天请求: {valid_token[:8]}...")
     response = await ai_service.get_ai_response(request, use_rag=True)
-    # 3. 分支处理：流式输出
     if request.stream:
         logger.info("尝试流式输出")
         return StreamingResponse(
