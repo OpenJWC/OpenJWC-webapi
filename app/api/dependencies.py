@@ -1,7 +1,13 @@
 from fastapi import Depends, HTTPException, Header, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import (
+    HTTPBearer,
+    HTTPAuthorizationCredentials,
+    OAuth2PasswordBearer,
+)
 from app.services.sql_db_service import db
 from app.utils.logging_manager import setup_logger
+import jwt
+from app.core.security import SECRET_KEY, ALGORITHM
 
 logger = setup_logger("auth_logs")
 
@@ -35,3 +41,31 @@ async def verify_api_key(
 
     logger.debug(f"鉴权通过 - Token: {token[:8]}... 设备: {x_device_id}")
     return token
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/admin/login")
+
+
+def get_current_admin(token: str = Depends(oauth2_scheme)):
+    """
+    管理员接口专属拦截器。
+    任何想保护的接口，只要加上 Depends(get_current_admin) 即可。
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="认证失败或Token已过期，请重新登录",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        # 尝试解密 JWT
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        # admin_user = db.get_user(username)
+        # if not admin_user: raise credentials_exception
+        return username  # 返回解析出的管理员用户名
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="登录已过期")
+    except jwt.InvalidTokenError:
+        raise credentials_exception

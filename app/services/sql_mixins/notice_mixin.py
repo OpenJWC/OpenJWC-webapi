@@ -4,7 +4,7 @@ import json
 import os
 
 
-class SQLMixin:
+class NoticeMixin:
     def get_all_notices(self: DBInterface) -> list[dict]:
         """返回格式: [{'id': '...', 'title': '...', 'content_text': '...', 'date': '...'}]"""
         with self.get_connection() as conn:

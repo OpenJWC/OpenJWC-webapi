@@ -1,13 +1,15 @@
 import sqlite3
 from app.core.config import NOTICE_DB, NOTICE_JSON
 from app.services.db_interface import logger
-from app.services.sql_mixin import SQLMixin
-from app.services.validation_mixin import ValidationMixin
+from app.services.sql_mixins.notice_mixin import NoticeMixin
+from app.services.sql_mixins.validation_mixin import ValidationMixin
+from app.services.sql_mixins.admin_mixin import AdminMixin
+from app.services.sql_mixins.device_mixin import DeviceMixin
 
 import cmd
 
 
-class DBService(SQLMixin, ValidationMixin):
+class DBService(NoticeMixin, ValidationMixin, AdminMixin, DeviceMixin):
     def __init__(self, db_path=NOTICE_DB):
         self.db_path = db_path
         self.init_db()
@@ -48,6 +50,19 @@ class DBService(SQLMixin, ValidationMixin):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
+        create_admin_sql = """
+        CREATE TABLE IF NOT EXISTS admin_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_name TEXT UNIQUE NOT NULL,
+            hashed_password TEXT NOT NULL
+        )
+        """
+        create_system_sql = """
+        CREATE TABLE IF NOT EXISTS system_settings (
+            setting_key TEXT PRIMARY KEY,
+            setting_value TEXT
+        )
+        """
         create_index_sql = (
             "CREATE INDEX IF NOT EXISTS idx_key_string ON api_keys(key_string);"
         )
@@ -55,7 +70,9 @@ class DBService(SQLMixin, ValidationMixin):
             cursor = conn.cursor()
             cursor.execute(create_notices_sql)
             cursor.execute(create_keys_sql)
+            cursor.execute(create_admin_sql)
             cursor.execute(create_index_sql)
+            cursor.execute(create_system_sql)
             conn.commit()
             logger.info("sql数据库初始化完成")
 
@@ -89,6 +106,10 @@ class SQLCLI(cmd.Cmd):
     def do_toggle(self, arg: str):
         args = arg.split()
         db.toggle_key_status(key_id=int(args[0]), is_active=(args[1] != "0"))
+
+    def do_unbind(self, arg: str):
+        args = arg.split()
+        db.unbind_device(api_key=args[0], device_id=args[1])
 
     def do_delete(self, arg: str):
         ids = arg.split()

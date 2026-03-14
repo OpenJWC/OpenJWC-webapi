@@ -32,3 +32,9 @@ class NoticeListResponse(BaseModel):
     size: int
     total_returned: int  # 本次实际返回的条数
     data: List[NoticeItem]
+
+
+# 定义解绑设备请求格式的结构
+class UnbindRequest(BaseModel):
+    key_string: str
+    device_id: str
