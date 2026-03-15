@@ -114,6 +114,22 @@ class ValidationMixin:
                 results.append(r_dict)
             return results
 
+    def get_total_api_calls(self: DBInterface) -> int:
+        """获取所有API调用次数"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT SUM(total_requests) FROM api_keys")
+            result = cursor.fetchone()
+            return result[0] if result else 0
+
+    def get_active_keys_counts(self: DBInterface) -> int:
+        """获取当前活跃的API密钥数量"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM api_keys WHERE is_active = TRUE")
+            result = cursor.fetchone()
+            return result[0] if result else 0
+
     def toggle_key_status(self: DBInterface, key_id: int, is_active: bool):
         """管理员接口：拉黑/解封某个用户"""
         with self.get_connection() as conn:

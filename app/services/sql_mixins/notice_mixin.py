@@ -32,6 +32,14 @@ class NoticeMixin:
 
             return results
 
+    def get_total_notices(self: DBInterface) -> int:
+        """获取当前数据库中所有资讯的总数"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM notices")
+            result = cursor.fetchone()
+            return result[0] if result else 0
+
     def drop_table(self: DBInterface):
         """如果想更彻底，直接删除表结构"""
         with self.get_connection() as conn:

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app.api.v1.client import chat, notices, unbind
-from app.api.v1.admin import auth, sysinfo
+from app.api.v1.admin import auth, sysinfo, stats
 from app.services.sql_db_service import SQLCLI
 import os
 
@@ -18,6 +18,7 @@ app.include_router(auth.router, prefix="/api/v1/admin/auth", tags=["管理员登
 app.include_router(
     sysinfo.router, prefix="/api/v1/admin/monitor", tags=["系统基本信息"]
 )
+app.include_router(stats.router, prefix="/api/v1/admin/monitor", tags=["基本业务信息"])
 
 
 @app.get("/")
