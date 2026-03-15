@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query
 from app.models.schemas import NoticeListResponse
-from app.services.sql_db_service import db  # 导入我们在上一节写的单例数据库服务
+from app.services.sql_db_service import db
 from app.utils.logging_manager import setup_logger
 
 logger = setup_logger("notice_api_logs")

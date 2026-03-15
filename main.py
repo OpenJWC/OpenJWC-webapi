@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.api.v1.client import chat, notices, unbind
+from app.api.v1.client import chat, notices, unbind, device
 from app.api.v1.admin import auth, sysinfo, stats
 from app.services.sql_db_service import SQLCLI
 import os
@@ -19,6 +19,7 @@ app.include_router(
     sysinfo.router, prefix="/api/v1/admin/monitor", tags=["系统基本信息"]
 )
 app.include_router(stats.router, prefix="/api/v1/admin/monitor", tags=["基本业务信息"])
+app.include_router(device.router, prefix="/api/v1/client", tags=["设备绑定信息"])
 
 
 @app.get("/")

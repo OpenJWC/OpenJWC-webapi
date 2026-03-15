@@ -5,6 +5,7 @@ from app.services.sql_mixins.notice_mixin import NoticeMixin
 from app.services.sql_mixins.validation_mixin import ValidationMixin
 from app.services.sql_mixins.admin_mixin import AdminMixin
 from app.services.sql_mixins.device_mixin import DeviceMixin
+from rich import print
 
 import cmd
 
@@ -85,15 +86,27 @@ class SQLCLI(cmd.Cmd):
     prompt = "sqlcli>>> "
 
     def do_q(self, arg):
+        """
+        退出cli工具。
+        """
         return True
 
     def do_valid(self, arg: str):
+        """
+        模拟登录验证。
+        参数分别为apikey和device id。
+        """
         args = arg.split()
         isvalid, info = db.validate_and_use_key(key_string=args[0], device_id=args[1])
         logger.info("API VALIDATION: " + str(isvalid))
         logger.info("info: " + info)
 
     def do_create(self, arg: str):
+        """
+        创建user或admin。
+        user: 参数分别为用户名和最大设备数。
+        admin: 参数分别为用户名和密码。
+        """
         args = arg.split()
         if len(args) == 3:
             if args[0] == "user":
@@ -105,11 +118,18 @@ class SQLCLI(cmd.Cmd):
                 logger.info(db.create_admin(username=args[1], password=args[2]))
 
     def do_show(self, arg: str):
+        """
+        显示所有apikey的状态
+        """
         keys = db.get_all_api_keys()
         for key in keys:
             print(key)
 
     def do_admin(self, arg: str):
+        """
+        check: 查看一个admin账号的状态。
+        delete: 删除一个admin账号。
+        """
         args = arg.split()
         if args[0] == "check":
             logger.info(db.get_admin_user(args[1]))
@@ -117,18 +137,36 @@ class SQLCLI(cmd.Cmd):
             logger.info(db.delete_admin(args[1]))
 
     def do_toggle(self, arg: str):
+        """
+        启停一个apikey。
+        """
         args = arg.split()
         db.toggle_key_status(key_id=int(args[0]), is_active=(args[1] != "0"))
 
     def do_unbind(self, arg: str):
+        """
+        解绑设备。
+        参数分别为apikey和device。
+        """
         args = arg.split()
         db.unbind_device(api_key=args[0], device_id=args[1])
 
     def do_delete(self, arg: str):
+        """
+        删除apikey。
+        """
         ids = arg.split()
         for id in ids:
             deleted = db.delete_api_key(key_id=int(id))
             logger.info(f"移除{id}: {deleted}")
+
+    def do_check(self, arg: str):
+        """
+        查看一个apikey的设备绑定情况。
+        """
+        args = arg.split()
+        info = db.get_device_info(key_string=args[0], device_id=args[1])
+        print(info)
 
 
 if __name__ == "__main__":
