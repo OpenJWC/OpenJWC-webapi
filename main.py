@@ -1,6 +1,13 @@
 from fastapi import FastAPI
 from app.api.v1.client import chat, notices, unbind, device
-from app.api.v1.admin import auth, sysinfo, stats, get_apikeys, create_apikey
+from app.api.v1.admin import (
+    auth,
+    sysinfo,
+    stats,
+    get_apikeys,
+    create_apikey,
+    toggle_apikey,
+)
 from app.services.sql_db_service import SQLCLI
 from app.utils.logging_manager import setup_logger
 import os
@@ -28,6 +35,9 @@ app.include_router(
 )
 app.include_router(
     create_apikey.router, prefix="/api/v1/admin", tags=["创建新的apikey"]
+)
+app.include_router(
+    toggle_apikey.router, prefix="/api/v1/admin/apikeys", tags=["启停apikey"]
 )
 
 

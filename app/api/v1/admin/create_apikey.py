@@ -11,7 +11,7 @@ router = APIRouter(route_class=LoggingRoute)
 
 
 @router.post("/apikeys", response_model=ResponseModel)
-async def get_latest_notices(
+async def create_api_key(
     request: CreateApiKeyRequest,
     admin_info: dict = Depends(verify_admin_token),
 ):

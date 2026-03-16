@@ -23,6 +23,11 @@ class CreateApiKeyRequest(BaseModel):
     max_devices: int
 
 
+# 定义启停apikey请求格式的结构 (Schema)
+class ToggleApiKeyRequest(BaseModel):
+    is_active: bool
+
+
 # 定义单条资讯的结构
 class NoticeItem(BaseModel):
     id: str
