@@ -1,7 +1,9 @@
 from app.services.prompt_engine import PromptEngine
-from app.services.vector_db_service import vector_db  # 假设你有个向量数据库服务
+from app.services.vector_db_service import vector_db
 from openai import AsyncOpenAI
 from app.utils.logging_manager import setup_logger
+from app.models.schemas import ChatRequest
+from app.services.sql_db_service import db
 import asyncio
 import os
 
@@ -12,8 +14,8 @@ client = AsyncOpenAI(
 )
 
 
-async def get_ai_response(request, use_rag=False):
-    context = None
+async def get_ai_response(request: ChatRequest, use_rag=False):
+    context = ""
     if use_rag:
         # 在这里调用向量数据库检索相关资讯
         try:
@@ -21,8 +23,14 @@ async def get_ai_response(request, use_rag=False):
             context = await asyncio.to_thread(vector_db.search, request.user_query)
         except Exception as e:
             logger.error(f"向量数据库检索失败: {e}")
-            context = None
-
+            context = ""
+    if request.notice_id:
+        target_notice = db.get_notice_content(request.notice_id)
+        if target_notice:
+            context += "\n用户指定了以下资讯，请你对这一资讯的信息更加注意："
+            context += f"\n资讯标题：{target_notice['title']}"
+            context += f"\n资讯正文：{target_notice['content_text']}"
+            context += f"\n资讯日期：{target_notice['date']}"
     # 获取组装好的 Prompt
     messages = PromptEngine.build_chat_prompt(
         request.history, request.user_query, context
