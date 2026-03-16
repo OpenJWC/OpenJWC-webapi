@@ -7,6 +7,7 @@ from app.api.v1.admin import (
     get_apikeys,
     create_apikey,
     toggle_apikey,
+    delete_apikey,
 )
 from app.services.sql_db_service import SQLCLI
 from app.utils.logging_manager import setup_logger
@@ -38,6 +39,9 @@ app.include_router(
 )
 app.include_router(
     toggle_apikey.router, prefix="/api/v1/admin/apikeys", tags=["启停apikey"]
+)
+app.include_router(
+    delete_apikey.router, prefix="/api/v1/admin/apikeys", tags=["删除apikey"]
 )
 
 
