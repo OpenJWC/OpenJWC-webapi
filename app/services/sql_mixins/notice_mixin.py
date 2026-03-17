@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from app.services.db_interface import DBInterface, logger
 import json
 import os
@@ -118,25 +118,36 @@ class NoticeMixin:
         return {"new_added": new_notices_count, "updated": updated_notices_count}
 
     def get_notices_for_app(
-        self: DBInterface, limit: int = 20, offset: int = 0
-    ) -> List[dict]:
+        self: DBInterface, limit: int = 20, offset: int = 0, label: Optional[str] = None
+    ) -> Tuple[int, List[dict]]:
         """供 FastAPI 路由调用的查询接口（给移动端的列表页面）"""
         with self.get_connection() as conn:
+            count_query = "SELECT COUNT(*) FROM notices"
+            count_params = []
+            if label is not None:
+                count_query += " WHERE label = ? "
+                count_params.append(label)
             cursor = conn.cursor()
-            # 按照日期倒序排列，拿最新的
-            cursor.execute(
-                """
+            cursor.execute(count_query, tuple(count_params))
+            total_count = cursor.fetchone()[0]
+            query = """
                 SELECT id, label, title, date, detail_url, is_page 
                 FROM notices 
-                ORDER BY date DESC, id DESC
-                LIMIT ? OFFSET ?
-            """,
-                (limit, offset),
-            )
+            """
+            params = []
+            if label is not None:
+                query += " WHERE label = ? "
+                params.append(label)
+            query += " ORDER BY date DESC, id DESC LIMIT ? OFFSET ? "
+            params.extend([limit, offset])
+
+            cursor.execute(query, tuple(params))
             rows = cursor.fetchall()
-            if rows:
-                logger.info("资讯查询成功")
-            return [dict(row) for row in rows]
+            results = [dict(row) for row in rows]
+            logger.info(
+                f"资讯查询成功 (label: {label}, total: {total_count}, count: {len(results)})"
+            )
+            return total_count, results
 
     def get_notice_content(self: DBInterface, notice_id: str) -> Optional[dict]:
         """供 LLM (大语言模型) 提取正文时使用"""
@@ -148,3 +159,11 @@ class NoticeMixin:
             )
             row = cursor.fetchone()
             return dict(row) if row else None
+
+    def get_total_labels(self: DBInterface) -> int:
+        """获取标签总数"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(DISTINCT label) FROM notices")
+            result = cursor.fetchone()
+            return result[0] if result else 0

@@ -21,4 +21,14 @@ async def get_latest_notices(
     """
     获取教务处最新资讯列表（支持分页）
     """
-    pass
+    offset = size * (page - 1)
+    limit = size
+    total, notices = db.get_notices_for_app(label=label, offset=offset, limit=limit)
+    return ResponseModel(
+        msg="获取成功",
+        data={
+            "total_returned": total,
+            "total_label": db.get_total_labels(),
+            "notices": notices,
+        },
+    )
