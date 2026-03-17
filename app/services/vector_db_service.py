@@ -1,13 +1,28 @@
 import os
+import logging
 import chromadb
 from datetime import date
 from zhipuai import ZhipuAI
+from zhipuai.core._errors import (
+    APIConnectionError,
+    APITimeoutError,
+    APIInternalError,
+    APIReachLimitError,
+)
 from datetime import datetime
 from app.utils.logging_manager import setup_logger
 from app.core.config import MAX_DAY_DIFF
 
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
+)
+
 # 初始化智谱客户端和向量数据库
-client = ZhipuAI(api_key=os.environ.get("ZHIPUAI_API_KEY"))
+client = ZhipuAI(api_key=os.environ.get("ZHIPUAI_API_KEY"), timeout=60)
 chroma_client = chromadb.PersistentClient(path="./data/chroma_db")
 collection = chroma_client.get_or_create_collection(name="notices")
 
@@ -16,18 +31,39 @@ logger = setup_logger("vector_db_logs")
 
 class VectorDBService:
     @staticmethod
+    @retry(
+        # 针对智谱 SDK 抛出的网络、超时、限流、500错误进行重试
+        retry=retry_if_exception_type(
+            (
+                APIConnectionError,
+                APITimeoutError,
+                APIInternalError,
+                APIReachLimitError,
+                Exception,
+            )
+        ),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(4),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True,
+    )
+    def _call_zhipu_embedding_with_retry(text: str):
+        return client.embeddings.create(
+            model="embedding-3",
+            input=text,
+        )
+
+    @staticmethod
     def get_embedding(text: str):
         """调用智谱 embedding-3 接口"""
-        logger.info(f"调用智谱 embedding-3 接口，输入文本: {text}")
+        preview_text = text[:20].replace("\n", "") + "..." if len(text) > 20 else text
+        logger.info(f"调用智谱 embedding-3 接口，输入文本: {preview_text}")
         try:
-            response = client.embeddings.create(
-                model="embedding-3",
-                input=text,
-            )
+            response = VectorDBService._call_zhipu_embedding_with_retry(text)
+            return response.data[0].embedding
         except Exception as e:
             logger.error(f"调用智谱 embedding-3 接口失败: {e}")
             raise Exception("调用智谱 embedding-3 接口失败")
-        return response.data[0].embedding
 
     def check_notice_exists(self, source_notice_id: str) -> bool:
         """

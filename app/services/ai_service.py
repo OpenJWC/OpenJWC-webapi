@@ -1,17 +1,54 @@
 from app.services.prompt_engine import PromptEngine
 from app.services.vector_db_service import vector_db
 from openai import AsyncOpenAI
+import openai
+from fastapi import HTTPException
 from app.utils.logging_manager import setup_logger
+import logging
 from app.models.schemas import ChatRequest
 from app.services.sql_db_service import db
 import asyncio
 import os
+import httpx
+
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
+)
 
 logger = setup_logger("ai_service_logs")
 
+http_client = httpx.AsyncClient(proxy=None, timeout=60.0)
+
 client = AsyncOpenAI(
-    api_key=os.environ.get("DEEPSEEK_API_KEY"), base_url="https://api.deepseek.com"
+    api_key=os.environ.get("DEEPSEEK_API_KEY"),
+    base_url="https://api.deepseek.com",
+    http_client=http_client,
 )
+
+
+@retry(
+    retry=retry_if_exception_type(
+        (
+            openai.APIConnectionError,
+            openai.APITimeoutError,
+            openai.InternalServerError,
+            openai.RateLimitError,
+        )
+    ),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(4),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+async def call_llm_with_retry(messages: list, stream: bool):
+    """封装调用 LLM 的底层逻辑，并附加重试机制"""
+    return await client.chat.completions.create(
+        model="deepseek-chat", messages=messages, stream=stream
+    )
 
 
 async def get_ai_response(request: ChatRequest, use_rag=False):
@@ -38,14 +75,20 @@ async def get_ai_response(request: ChatRequest, use_rag=False):
 
     # 调用 OpenAI/DeepSeek API
     logger.info("调用Deepseek API...")
-    return await client.chat.completions.create(
-        model="deepseek-chat", messages=messages, stream=request.stream
-    )
+    try:
+        return await call_llm_with_retry(messages, request.stream)
+    except openai.APIConnectionError as e:
+        logger.error(f"DeepSeek 连接失败: {e}")
+        raise HTTPException(status_code=503, detail="AI 服务暂时不可用 (网络连接失败)")
+    except openai.RateLimitError:
+        logger.error("DeepSeek 服务请求过于频繁")
+        raise HTTPException(status_code=429, detail="AI 服务请求过于频繁")
+    except Exception as e:
+        logger.error(f"DeepSeek 连接失败：{e}")
+        raise HTTPException(status_code=500, detail=f"内部错误: {str(e)}")
 
 
-# 定义一个异步生成器
 async def generate_stream(response):
-    # 当 stream=True 时，response 是一个异步生成器
     async for chunk in response:
         content = chunk.choices[0].delta.content
         if content is not None:
