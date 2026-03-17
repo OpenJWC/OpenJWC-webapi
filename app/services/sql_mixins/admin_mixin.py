@@ -1,6 +1,7 @@
 from typing import Dict, Optional
 from app.services.db_interface import DBInterface, logger
 from app.core.security import get_password_hash
+from app.core.config import ALLOWED_KEYS
 
 
 class AdminMixin:
@@ -67,6 +68,18 @@ class AdminMixin:
             )
             row = cursor.fetchone()
             return row["setting_value"] if row else default_value
+
+    def _sync_settings(self: DBInterface):
+        """从ALLOWED_SETTINGS中中同步所有允许的配置项到数据库"""
+
+    def _remove_setting(self: DBInterface, setting_key: str):
+        """删除指定的系统设置项"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM system_settings WHERE setting_key = ?", (setting_key,)
+            )
+            conn.commit()
 
     def get_all_settings(self: DBInterface) -> Dict[str, str]:
         """获取所有配置，供后台面板一次性展示"""

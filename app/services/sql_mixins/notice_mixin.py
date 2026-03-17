@@ -143,7 +143,11 @@ class NoticeMixin:
 
             cursor.execute(query, tuple(params))
             rows = cursor.fetchall()
-            results = [dict(row) for row in rows]
+            results = []
+            for row in rows:
+                item = dict(row)
+                item["is_page"] = bool(item["is_page"])
+                results.append(item)
             logger.info(
                 f"资讯查询成功 (label: {label}, total: {total_count}, count: {len(results)})"
             )
@@ -167,3 +171,11 @@ class NoticeMixin:
             cursor.execute("SELECT COUNT(DISTINCT label) FROM notices")
             result = cursor.fetchone()
             return result[0] if result else 0
+
+    def get_labels(self: DBInterface) -> List[str]:
+        """获取所有标签"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT DISTINCT label FROM notices")
+            results = cursor.fetchall()
+            return [row[0] for row in results] if results else []

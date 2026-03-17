@@ -17,13 +17,13 @@ class ChatRequest(BaseModel):
     history: List[Message] = []
 
 
-# 定义创建apikey请求格式的结构 (Schema)
+# 定义创建apikey请求格式的结构
 class CreateApiKeyRequest(BaseModel):
     owner_name: str
     max_devices: int
 
 
-# 定义启停apikey请求格式的结构 (Schema)
+# 定义启停apikey请求格式的结构
 class ToggleApiKeyRequest(BaseModel):
     is_active: bool
 

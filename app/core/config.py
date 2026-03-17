@@ -10,3 +10,9 @@ OUTPUT_JSON = DATA_DIR / "output.json"
 LOGS_DIR = ROOT_DIR / "logs"
 MAX_DAY_DIFF = 300
 ACCESS_TOKEN_EXPIRE_MINUTES = 5
+ALLOWED_KEYS = {
+    "deepseek_api_key",
+    "zhipu_api_key",
+    "crawler_interval_minuets",
+    "system_prompt",
+}

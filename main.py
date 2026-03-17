@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.api.v1.client import chat, notices, unbind, device
+from app.api.v1.client import chat, notices, unbind, device, get_labels
 from app.api.v1.admin import (
     auth,
     sysinfo,
@@ -9,6 +9,7 @@ from app.api.v1.admin import (
     toggle_apikey,
     delete_apikey,
     get_settings,
+    update_setting,
 )
 from app.services.sql_db_service import SQLCLI
 from app.utils.logging_manager import setup_logger
@@ -58,6 +59,10 @@ app.include_router(
 )
 app.include_router(
     delete_apikey.router, prefix="/api/v1/admin/apikeys", tags=["删除apikey"]
+)
+app.include_router(update_setting.router, prefix="/api/v1/admin", tags=["修改系统设置"])
+app.include_router(
+    get_labels.router, prefix="/api/v1/client/notices", tags=["获取所有标签"]
 )
 
 
