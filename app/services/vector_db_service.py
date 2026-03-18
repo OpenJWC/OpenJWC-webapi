@@ -1,6 +1,7 @@
 import os
 import logging
 import chromadb
+from app.services.sql_db_service import db
 from datetime import date
 from zhipuai import ZhipuAI
 from zhipuai.core._errors import (
@@ -22,7 +23,7 @@ from tenacity import (
 )
 
 # 初始化智谱客户端和向量数据库
-client = ZhipuAI(api_key=os.environ.get("ZHIPUAI_API_KEY"), timeout=60)
+client = ZhipuAI(api_key=db.get_system_setting("zhipu_api_key"), timeout=60)
 chroma_client = chromadb.PersistentClient(path="./data/chroma_db")
 collection = chroma_client.get_or_create_collection(name="notices")
 

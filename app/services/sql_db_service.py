@@ -131,12 +131,15 @@ class SQLCLI(cmd.Cmd):
         """
         check: 查看一个admin账号的状态。
         delete: 删除一个admin账号。
+        mdpw: 修改admin账号的密码。
         """
         args = arg.split()
         if args[0] == "check":
             logger.info(db.get_admin_user(args[1]))
         elif args[0] == "delete":
             logger.info(db.delete_admin(args[1]))
+        elif args[0] == "mdpw":
+            logger.info(db.modify_password(args[1], args[2]))
 
     def do_toggle(self, arg: str):
         """

@@ -11,6 +11,7 @@ from app.api.v1.admin import (
     get_settings,
     update_setting,
     reset_settings,
+    modify_password,
 )
 from app.services.sql_db_service import SQLCLI
 from app.utils.logging_manager import setup_logger
@@ -67,6 +68,9 @@ app.include_router(
 )
 app.include_router(
     reset_settings.router, prefix="/api/v1/admin/settings", tags=["重置系统设置"]
+)
+app.include_router(
+    modify_password.router, prefix="/api/v1/admin/settings", tags=["修改管理员密码"]
 )
 
 

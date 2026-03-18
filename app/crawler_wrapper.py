@@ -75,13 +75,13 @@ def run_crawler_job():
 
 
 if __name__ == "__main__":
-    INTERVAL_SECONDS = 8 * 60 * 60
-
     logger.info("后台爬虫 Worker 服务已启动...")
 
     run_crawler_job()
 
     while True:
-        logger.info(f"等待 {INTERVAL_SECONDS / 3600} 小时后进行下一次爬取...")
-        time.sleep(INTERVAL_SECONDS)
+        logger.info(
+            f"等待 {int(db.get_system_setting('crawler_interval_minutes')) / 60} 小时后进行下一次爬取..."
+        )
+        time.sleep(int(db.get_system_setting("crawler_interval_minutes")) * 60)
         run_crawler_job()

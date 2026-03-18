@@ -55,10 +55,28 @@ class AdminMixin:
             logger.info(f"管理员账号 [ID: {admin_name}] 已被永久删除")
             return True
 
+    def modify_password(self: DBInterface, admin_name: str, new_password: str) -> bool:
+        """修改一个管理员的登录密码"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT user_name FROM admin_users WHERE user_name = ?", (admin_name,)
+            )
+            if not cursor.fetchone():
+                logger.warning(f"管理员账号 [ID: {admin_name}] 不存在")
+                return False
+
+            hashed_password = get_password_hash(password=new_password)
+            cursor.execute(
+                "UPDATE admin_users SET hashed_password = ? WHERE user_name = ?",
+                (hashed_password, admin_name),
+            )
+            conn.commit()
+            logger.info(f"管理员账号 [ID: {admin_name}] 的密码已更新")
+            return True
+
     # 系统设置
-    def get_system_setting(
-        self: DBInterface, setting_key: str, default_value: str = None
-    ) -> Optional[str]:
+    def get_system_setting(self: DBInterface, setting_key: str) -> Optional[str]:
         """获取系统配置（如大模型Key、系统提示词、爬虫周期）"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -67,7 +85,7 @@ class AdminMixin:
                 (setting_key,),
             )
             row = cursor.fetchone()
-            return row["setting_value"] if row else default_value
+            return row["setting_value"] if row else ALLOWED_SETTINGS[setting_key]
 
     def _sync_settings(
         self: DBInterface,

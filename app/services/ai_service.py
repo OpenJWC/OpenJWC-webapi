@@ -24,7 +24,7 @@ logger = setup_logger("ai_service_logs")
 http_client = httpx.AsyncClient(proxy=None, timeout=60.0)
 
 client = AsyncOpenAI(
-    api_key=os.environ.get("DEEPSEEK_API_KEY"),
+    api_key=db.get_system_setting("deepseek_api_key"),
     base_url="https://api.deepseek.com",
     http_client=http_client,
 )
