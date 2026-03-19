@@ -69,6 +69,23 @@ class DBService(NoticeMixin, ValidationMixin, AdminMixin, DeviceMixin):
         create_index_sql = (
             "CREATE INDEX IF NOT EXISTS idx_key_string ON api_keys(key_string);"
         )
+        create_submissions_sql = """
+        CREATE TABLE IF NOT EXISTS submissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            label TEXT,
+            title TEXT NOT NULL,
+            date TEXT,
+            detail_url TEXT,
+            is_page BOOLEAN,
+            content_text TEXT NOT NULL,
+            attachments TEXT,
+            submitter_id TEXT,
+            status TEXT DEFAULT 'pending',   -- 状态: pending, approved, rejected
+            review TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(create_notices_sql)
@@ -76,6 +93,7 @@ class DBService(NoticeMixin, ValidationMixin, AdminMixin, DeviceMixin):
             cursor.execute(create_admin_sql)
             cursor.execute(create_index_sql)
             cursor.execute(create_system_sql)
+            cursor.execute(create_submissions_sql)
             conn.commit()
             logger.info("sql数据库初始化完成")
 
