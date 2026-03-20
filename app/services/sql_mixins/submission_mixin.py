@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from app.services.db_interface import DBInterface
 from typing import List, Dict, Any
@@ -31,7 +32,7 @@ class SubmissionMixin:
                     submission.detail_url,
                     submission.is_page,
                     submission.content.text,
-                    submission.content.attachment_urls,
+                    json.dumps(submission.content.attachment_urls, ensure_ascii=False),
                     submitter_id,
                 ),
             )
@@ -76,12 +77,14 @@ class SubmissionMixin:
             row = cursor.fetchone()
             return dict(row) if row else None
 
-    def get_submission_by_id(self: DBInterface, apikey: int) -> Dict[str, Any] | None:
+    def get_submission_by_apikey(
+        self: DBInterface, apikey: str
+    ) -> Dict[str, Any] | None:
         """获取来自某个用户的提交"""
         sql = "SELECT * FROM submissions WHERE submitter_id = ?"
         with self.get_connection() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            cursor.execute(sql, (sub_id,))
+            cursor.execute(sql, (apikey,))
             row = cursor.fetchone()
             return dict(row) if row else None
