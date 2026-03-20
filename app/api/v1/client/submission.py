@@ -25,5 +25,6 @@ async def client_submission(
 async def process_query(valid_token: str = Depends(verify_api_key)):
     notices = db.get_submission_by_apikey(valid_token)
     return ResponseModel(
-        msg="提交成功", data={"total": len(notices.keys()), "notices": notices}
+        msg="提交成功",
+        data={"total": len(notices.keys()) if notices else 0, "notices": notices},
     )
