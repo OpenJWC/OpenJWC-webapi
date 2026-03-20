@@ -1,5 +1,6 @@
 from app.api.v1.client import device, chat, notices
 from app.api.v1.admin import auth, settings, monitor, apikeys, logs
+from app.api.v1.admin import notices as admin_notices
 from fastapi import APIRouter
 
 client_router = APIRouter(prefix="/client")
@@ -15,3 +16,4 @@ admin_router.include_router(settings.router)
 admin_router.include_router(monitor.router)
 admin_router.include_router(apikeys.router)
 admin_router.include_router(logs.router)
+admin_router.include_router(admin_notices.router)

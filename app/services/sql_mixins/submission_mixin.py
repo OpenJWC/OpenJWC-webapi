@@ -52,7 +52,7 @@ class SubmissionMixin:
             return [dict(row) for row in rows]
 
     def update_submission_status(
-        self: DBInterface, sub_id: int, status: str, reject_reason: str = ""
+        self: DBInterface, sub_id: int, status: str, review: str = ""
     ) -> bool:
         """WebUI管理端：更新审核状态"""
         sql = """
@@ -62,13 +62,23 @@ class SubmissionMixin:
         """
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(sql, (status, reject_reason, sub_id))
+            cursor.execute(sql, (status, review, sub_id))
             conn.commit()
             return cursor.rowcount > 0
 
     def get_submission_by_id(self: DBInterface, sub_id: int) -> Dict[str, Any] | None:
         """获取单个提交的详细信息"""
         sql = "SELECT * FROM submissions WHERE id = ?"
+        with self.get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute(sql, (sub_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def get_submission_by_id(self: DBInterface, apikey: int) -> Dict[str, Any] | None:
+        """获取来自某个用户的提交"""
+        sql = "SELECT * FROM submissions WHERE submitter_id = ?"
         with self.get_connection() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()

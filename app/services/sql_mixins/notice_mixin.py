@@ -41,7 +41,7 @@ class NoticeMixin:
             return result[0] if result else 0
 
     def drop_table(self: DBInterface):
-        """如果想更彻底，直接删除表结构"""
+        """直接删除notices表结构"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("DROP TABLE IF EXISTS notices")
@@ -180,3 +180,18 @@ class NoticeMixin:
             cursor.execute("SELECT DISTINCT label FROM notices")
             results = cursor.fetchall()
             return [row[0] for row in results] if results else []
+
+    def delete_notice_by_id(self: DBInterface, notice_id: str) -> bool:
+        """按ID删除通知"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            # 先检查通知是否存在
+            cursor.execute("SELECT id FROM notices WHERE id = ?", (notice_id,))
+            if not cursor.fetchone():
+                logger.warning(f"通知 [ID: {notice_id}] 不存在")
+                return False
+
+            cursor.execute("DELETE FROM notices WHERE id = ?", (notice_id,))
+            conn.commit()
+            logger.info(f"通知 [ID: {notice_id}] 已被删除")
+            return True

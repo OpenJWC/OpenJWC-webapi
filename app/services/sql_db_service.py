@@ -6,13 +6,14 @@ from app.services.sql_mixins.notice_mixin import NoticeMixin
 from app.services.sql_mixins.validation_mixin import ValidationMixin
 from app.services.sql_mixins.admin_mixin import AdminMixin
 from app.services.sql_mixins.device_mixin import DeviceMixin
+from app.services.sql_mixins.submission_mixin import SubmissionMixin
 from app.utils.ping_check import diagnose_network_environment
 from rich import print
 
 import cmd
 
 
-class DBService(NoticeMixin, ValidationMixin, AdminMixin, DeviceMixin):
+class DBService(NoticeMixin, ValidationMixin, AdminMixin, DeviceMixin, SubmissionMixin):
     def __init__(self, db_path=NOTICE_DB):
         self.db_path = db_path
         self.init_db()
@@ -141,9 +142,16 @@ class SQLCLI(cmd.Cmd):
         """
         显示所有apikey的状态
         """
-        keys = db.get_all_api_keys()
-        for key in keys:
-            print(key)
+        args = arg.split()
+        if args[0] == "apikeys":
+            keys = db.get_all_api_keys()
+            for key in keys:
+                print(key)
+        elif args[0] == "notices":
+            print(db.get_all_notices()[: int(args[1])])
+        elif args[0] == "submissions":
+            status = args[1]
+            print(db.get_submissions_by_status(status))
 
     def do_admin(self, arg: str):
         """
@@ -178,10 +186,17 @@ class SQLCLI(cmd.Cmd):
         """
         删除apikey。
         """
-        ids = arg.split()
-        for id in ids:
-            deleted = db.delete_api_key(key_id=int(id))
-            logger.info(f"移除{id}: {deleted}")
+        args = arg.split()
+        if args[0] == "apikeys":
+            ids = args[1:]
+            for id in ids:
+                deleted = db.delete_api_key(key_id=int(id))
+                logger.info(f"移除{id}: {deleted}")
+        elif args[0] == "notices":
+            ids = args[1:]
+            for id in ids:
+                deleted = db.delete_notice_by_id(id)
+                logger.info(f"移除{id}: {deleted}")
 
     def do_check(self, arg: str):
         """
@@ -212,6 +227,9 @@ class SQLCLI(cmd.Cmd):
         db._sync_settings()
 
     def do_reset(self, arg: str):
+        """
+        重置系统设置为默认值。
+        """
         args = arg.split()
         if args:
             for setting in args:
@@ -220,7 +238,16 @@ class SQLCLI(cmd.Cmd):
             db.reset_all_settings()
 
     def do_diagnose(self, arg: str):
+        """
+        诊断网络环境。
+        """
         asyncio.run(diagnose_network_environment())
+
+    def do_drop(self, arg: str):
+        """
+        删除notices表。
+        """
+        db.drop_table()
 
 
 if __name__ == "__main__":

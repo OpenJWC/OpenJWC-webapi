@@ -6,7 +6,7 @@ from app.api.logging_route import LoggingRoute
 from typing import Annotated
 from app.api.dependencies import verify_api_key
 
-logger = setup_logger("notice_api_logs")
+logger = setup_logger("client_notice_logs")
 
 router = APIRouter(prefix="/notices", route_class=LoggingRoute)
 
