@@ -174,12 +174,19 @@ class NoticeMixin:
             return result[0] if result else 0
 
     def get_labels(self: DBInterface) -> List[str]:
-        """获取所有标签"""
+        """获取所有标签，按照标签最近出现的日期进行排序"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT DISTINCT label FROM notices")
-            results = cursor.fetchall()
-            return [row[0] for row in results] if results else []
+            # 使用子查询获取每个标签的最后出现日期，并按日期排序
+            cursor.execute("""
+                    SELECT label
+                    FROM notices
+                    WHERE label IS NOT NULL
+                    GROUP BY label
+                    ORDER BY MAX(date) DESC
+                """)
+        results = cursor.fetchall()
+        return [row[0] for row in results] if results else []
 
     def delete_notice_by_id(self: DBInterface, notice_id: str) -> bool:
         """按ID删除通知"""
@@ -197,7 +204,7 @@ class NoticeMixin:
             return True
 
     def insert_notice_from_dict(self: DBInterface, notice_data: dict) -> bool:
-        """纯写入：将字典数据插入 notices 表"""
+        """将字典数据插入 notices 表"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             # 检查是否已存在

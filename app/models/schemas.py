@@ -69,7 +69,7 @@ class SubmissionRequest(BaseModel):
     """资讯发布日期"""
     date: str
     """详细url"""
-    detail_url: str
+    detail_url: Optional[str] = None
     is_page: bool
     """资讯标签"""
     label: str

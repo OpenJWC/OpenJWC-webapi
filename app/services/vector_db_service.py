@@ -122,7 +122,7 @@ class VectorDBService:
         if diff.days > MAX_DAY_DIFF:
             logger.info(f"资讯发布日期距今已有{MAX_DAY_DIFF}天，认作旧闻而跳过。")
             return False
-        content = notice["content_text"]
+        content = f"资讯标题：{notice['title']};资讯日期：{notice['date']};资讯正文：{notice['content_text']}"
         if content is None:
             logger.info(f"资讯[{notice['title']}]无正文信息，跳过")
             return False
