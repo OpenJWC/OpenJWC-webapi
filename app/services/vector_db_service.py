@@ -99,7 +99,8 @@ class VectorDBService:
             days=db.get_system_setting("search_max_day_diff")
         )
         cutoff_date_str = cutoff_date.strftime("%Y-%m-%d")
-        where_clause = {"date": {"$gte": cutoff_date_str}}
+        cutoff_date_int = int(cutoff_date.strftime("%Y%m%d"))
+        where_clause = {"date_int": {"$gte": cutoff_date_int}}
         results = collection.query(
             query_embeddings=[query_vector], n_results=n_results, where=where_clause
         )
@@ -149,6 +150,7 @@ class VectorDBService:
                     "source_id": notice_id,
                     "title": notice["title"],
                     "date": notice["date"],
+                    "date_int": int(notice["date"].replace("-", "")),
                 },
             )
         logger.info(f"资讯 [{notice['title']}] 入库完成。")
