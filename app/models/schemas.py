@@ -11,7 +11,7 @@ class Message(BaseModel):
 
 # 定义聊天请求格式的结构 (Schema)
 class ChatRequest(BaseModel):
-    notice_id: str
+    notice_ids: Optional[List[str]] = None
     user_query: str
     stream: bool = False
     history: List[Message] = []

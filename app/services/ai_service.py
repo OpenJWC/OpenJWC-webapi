@@ -53,20 +53,20 @@ async def call_llm_with_retry(messages: list, stream: bool):
 async def get_ai_response(request: ChatRequest, use_rag=False):
     context = ""
     if use_rag:
-        # 在这里调用向量数据库检索相关资讯
         try:
             logger.info("尝试从向量数据库检索相关资讯...")
             context = await asyncio.to_thread(vector_db.search, request.user_query)
         except Exception as e:
             logger.error(f"向量数据库检索失败: {e}")
             context = ""
-    if request.notice_id:
-        target_notice = db.get_notice_content(request.notice_id)
-        if target_notice:
-            context += "\n用户指定了以下资讯，请你对这一资讯的信息更加注意："
-            context += f"\n资讯标题：{target_notice['title']}"
-            context += f"\n资讯正文：{target_notice['content_text']}"
-            context += f"\n资讯日期：{target_notice['date']}"
+    if request.notice_ids:
+        context += "\n用户指定了以下资讯，请你对这一资讯的信息更加注意："
+        for notice_id in request.notice_ids:
+            target_notice = db.get_notice_content(notice_id)
+            if target_notice:
+                context += f"\n资讯标题：{target_notice['title']}"
+                context += f"\n资讯正文：{target_notice['content_text']}"
+                context += f"\n资讯日期：{target_notice['date']}"
     # 获取组装好的 Prompt
     messages = PromptEngine.build_chat_prompt(
         request.history, request.user_query, context
