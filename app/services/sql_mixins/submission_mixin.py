@@ -121,14 +121,31 @@ class SubmissionMixin:
             else:
                 return None
 
-    def get_submission_by_apikey(
-        self: DBInterface, apikey: str
-    ) -> Dict[str, Any] | None:
-        """获取来自某个用户的提交"""
+    # FIXME: 此处写的逻辑完全错误！
+
+    def get_submission_by_apikey(self: DBInterface, apikey: str):
+        """
+        获取来自某个用户的提交
+        为移动客户端提供审核进度查询。
+        """
+
         sql = "SELECT * FROM submissions WHERE submitter_id = ?"
         with self.get_connection() as conn:
-            conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(sql, (apikey,))
-            row = cursor.fetchone()
-            return dict(row) if row else None
+            rows = cursor.fetchall()
+            result = []
+            for row in rows:
+                result.append(
+                    {
+                        "id": row["id"],
+                        "label": row["label"],
+                        "title": row["title"],
+                        "date": row["date"],
+                        "detail_url": row["detail_url"],
+                        "is_page": bool(row["is_page"]),
+                        "status": row["status"],
+                        "review": row["review"],
+                    }
+                )
+            return result
