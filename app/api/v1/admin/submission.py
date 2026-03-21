@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query, Depends, Path
-from app.models.schemas import ResponseModel
+from app.models.schemas import ResponseModel, UpdateStatusRequest
 from app.services.sql_db_service import db
 from app.utils.logging_manager import setup_logger
 from app.api.logging_route import LoggingRoute
@@ -49,3 +49,19 @@ async def get_submission_content(
     logger.info(f"Request ID: {admin_info['x_request_id']}")
     logger.info(f"Client Version: {admin_info['x_client_version']}")
     return ResponseModel(msg="获取成功", data=db.get_submission_by_id(id))
+
+
+# TODO:
+@router.post("/{id}/review", response_model=ResponseModel)
+async def update_submission_status(
+    request: UpdateStatusRequest,
+    id: str = Path(description="目标提交的id"),
+    admin_info: dict = Depends(verify_admin_token),
+):
+    """
+    对一个待审核提交进行审核。
+    """
+    logger.info(f"Request ID: {admin_info['x_request_id']}")
+    logger.info(f"Client Version: {admin_info['x_client_version']}")
+    db.update_submission_status(id, request.action, request.review)
+    return ResponseModel(msg="修改成功", data={})

@@ -1,5 +1,6 @@
 import json
 import sqlite3
+import hashlib
 from app.services.db_interface import DBInterface
 from typing import List, Dict, Any, Tuple, Optional
 from app.utils.logging_manager import setup_logger
@@ -11,21 +12,27 @@ logger = setup_logger("submission_db_logs")
 class SubmissionMixin:
     def create_submission(
         self: DBInterface, submission: SubmissionRequest, submitter_id: str
-    ) -> int | None:
+    ) -> str:
         """
         客户端：提交一条新资讯
         submission为客户端传来的请求体
         submitter_id为客户端的apikey
+        使用SHA256哈希生成唯一ID：将title、date、detail_url拼接后进行SHA256哈希
         """
+        # 生成SHA256 ID：将title、date、detail_url拼接
+        input_string = f"{submission.title}{submission.date}{submission.detail_url}"
+        submission_id = hashlib.sha256(input_string.encode("utf-8")).hexdigest()
+
         sql = """
-            INSERT INTO submissions (label, title, date, detail_url, is_page,  content_text, attachments, submitter_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO submissions (id, label, title, date, detail_url, is_page, content_text, attachments, submitter_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 sql,
                 (
+                    submission_id,
                     submission.label,
                     submission.title,
                     submission.date,
@@ -37,8 +44,8 @@ class SubmissionMixin:
                 ),
             )
             conn.commit()
-            logger.info(f"收到新资讯提交, ID: {cursor.lastrowid}")
-            return cursor.lastrowid
+            logger.info(f"收到新资讯提交, ID: {submission_id}")
+            return submission_id
 
     def get_submissions_by_status(
         self: DBInterface, status: str = "pending"
@@ -85,6 +92,7 @@ class SubmissionMixin:
             for row in rows:
                 item = dict(row)
                 item["is_page"] = bool(item["is_page"])
+                item["id"] = str(item["id"])
                 results.append(item)
             logger.info(
                 f"提交查询成功 (status: {status}, total: {total_count}, count: {len(results)})"
@@ -92,14 +100,16 @@ class SubmissionMixin:
             return total_count, results
 
     def update_submission_status(
-        self: DBInterface, sub_id: int, status: str, review: str = ""
+        self: DBInterface, sub_id: str, status: str, review: str = ""
     ) -> bool:
         """WebUI管理端：更新审核状态"""
         sql = """
-            UPDATE submissions 
-            SET status = ?, review = ?, updated_at = CURRENT_TIMESTAMP 
+            UPDATE submissions
+            SET status = ?, review = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         """
+        if status == "approved":
+            self.import_submission_to_notice(sub_id)
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(sql, (status, review, sub_id))
@@ -117,11 +127,10 @@ class SubmissionMixin:
             if row:
                 item = dict(row)
                 item["attachments"] = json.loads(item["attachments"])
+                item["id"] = str(item["id"])
                 return item
             else:
                 return None
-
-    # FIXME: 此处写的逻辑完全错误！
 
     def get_submission_by_apikey(self: DBInterface, apikey: str):
         """

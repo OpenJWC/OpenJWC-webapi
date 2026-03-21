@@ -75,3 +75,8 @@ class SubmissionRequest(BaseModel):
     label: str
     """资讯标题"""
     title: str
+
+
+class UpdateStatusRequest(BaseModel):
+    action: str
+    review: str

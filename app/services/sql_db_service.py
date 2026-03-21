@@ -72,7 +72,7 @@ class DBService(NoticeMixin, ValidationMixin, AdminMixin, DeviceMixin, Submissio
         )
         create_submissions_sql = """
         CREATE TABLE IF NOT EXISTS submissions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id TEXT PRIMARY KEY,
             label TEXT,
             title TEXT NOT NULL,
             date TEXT,
