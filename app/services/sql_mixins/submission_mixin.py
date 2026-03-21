@@ -108,8 +108,6 @@ class SubmissionMixin:
             SET status = ?, review = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         """
-        if status == "approved":
-            self.import_submission_to_notice(sub_id)
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(sql, (status, review, sub_id))

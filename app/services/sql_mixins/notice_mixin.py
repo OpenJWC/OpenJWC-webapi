@@ -40,13 +40,13 @@ class NoticeMixin:
             result = cursor.fetchone()
             return result[0] if result else 0
 
-    def drop_table(self: DBInterface):
-        """直接删除notices表结构"""
+    def drop_table(self: DBInterface, table: str):
+        """直接删除表结构并重新创建。"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("DROP TABLE IF EXISTS notices")
+            cursor.execute(f"DROP TABLE IF EXISTS {table}")
             conn.commit()
-            logger.info("表结构已删除。")
+            logger.info(f"{table}表结构已删除。")
             self.init_db()  # 重新创建干净的表
 
     def sync_from_json(self: DBInterface, json_file_path: str) -> Dict[str, int]:
@@ -196,45 +196,15 @@ class NoticeMixin:
             logger.info(f"通知 [ID: {notice_id}] 已被删除")
             return True
 
-    def import_submission_to_notice(self: DBInterface, submission_id: int) -> bool:
-        """
-        从submissions表中指定id的submission记录，并将其导入到notices表中。
-        """
+    def insert_notice_from_dict(self: DBInterface, notice_data: dict) -> bool:
+        """纯写入：将字典数据插入 notices 表"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                "SELECT id, label, title, date, detail_url, is_page, content_text, attachments FROM submissions WHERE id = ?",
-                (submission_id,),
-            )
-            submission_data = cursor.fetchone()
-
-            if not submission_data:
-                logger.warning(f"submissions表中不存在ID为 {submission_id} 的记录")
-                return False
-            submission_dict = dict(submission_data)
-            content_text = submission_dict.get("content_text", "")
-            attachments = submission_dict.get("attachments", "[]")
-            if attachments is None:
-                attachments = "[]"
-            notice_data = {
-                "id": str(submission_dict["id"]),
-                "label": submission_dict.get("label"),
-                "title": submission_dict.get("title"),
-                "date": submission_dict.get("date"),
-                "detail_url": submission_dict.get("detail_url"),
-                "is_page": submission_dict.get("is_page", 0),
-                "content_text": content_text,
-                "attachments": attachments,
-                "is_pushed": 0,  # 新导入的通知默认为未推送
-            }
-            # 检查notices表中是否已存在相同id的记录
+            # 检查是否已存在
             cursor.execute("SELECT id FROM notices WHERE id = ?", (notice_data["id"],))
             if cursor.fetchone():
-                logger.warning(
-                    f"notices表中已存在ID为 {notice_data['id']} 的记录，无法导入"
-                )
                 return False
-            # 插入到notices表
+
             insert_sql = """
                 INSERT INTO notices (id, label, title, date, detail_url, is_page, content_text, attachments, is_pushed)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -243,18 +213,15 @@ class NoticeMixin:
                 insert_sql,
                 (
                     notice_data["id"],
-                    notice_data["label"],
+                    notice_data.get("label"),
                     notice_data["title"],
                     notice_data["date"],
-                    notice_data["detail_url"],
-                    notice_data["is_page"],
+                    notice_data.get("detail_url"),
+                    notice_data.get("is_page", 0),
                     notice_data["content_text"],
-                    notice_data["attachments"],
-                    notice_data["is_pushed"],
+                    notice_data.get("attachments", "[]"),
+                    0,
                 ),
             )
             conn.commit()
-            logger.info(
-                f"成功将submissions表ID为 {submission_id} 的记录导入到notices表，新ID为 {notice_data['id']}"
-            )
-        return True
+            return True

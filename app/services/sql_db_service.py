@@ -10,7 +10,7 @@ from app.services.sql_mixins.submission_mixin import SubmissionMixin
 from app.utils.ping_check import diagnose_network_environment
 from rich import print
 
-import cmd
+import cmd2
 
 
 class DBService(NoticeMixin, ValidationMixin, AdminMixin, DeviceMixin, SubmissionMixin):
@@ -103,8 +103,13 @@ class DBService(NoticeMixin, ValidationMixin, AdminMixin, DeviceMixin, Submissio
 db = DBService()
 
 
-class SQLCLI(cmd.Cmd):
-    prompt = "sqlcli>>> "
+class SQLCLI(cmd2.Cmd):
+    def __init__(self):
+        super().__init__()
+        self.prompt = "admin>>> "
+
+    def preloop(self) -> None:
+        print("[bold green]OpenJWC Admin CLI[/bold green]")
 
     def do_q(self, arg):
         """
@@ -247,7 +252,9 @@ class SQLCLI(cmd.Cmd):
         """
         删除notices表。
         """
-        db.drop_table()
+        args = arg.split()
+        for table in args:
+            db.drop_table(table)
 
 
 if __name__ == "__main__":
