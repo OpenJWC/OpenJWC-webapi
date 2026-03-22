@@ -118,13 +118,18 @@ class AdminMixin:
             conn.commit()
             logger.info("系统配置同步完成。")
 
-    def get_all_settings(self: DBInterface) -> Dict[str, str]:
+    def get_all_settings(self: DBInterface) -> dict:
         """获取所有配置，供后台面板一次性展示"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT setting_key, setting_value FROM system_settings")
             rows = cursor.fetchall()
-            return {row["setting_key"]: row["setting_value"] for row in rows}
+            return {
+                "settings": [
+                    {"key": row["setting_key"], "value": row["setting_value"]}
+                    for row in rows
+                ]
+            }
 
     def update_system_setting(self: DBInterface, setting_key: str, setting_value: str):
         """
