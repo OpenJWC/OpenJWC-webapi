@@ -57,6 +57,7 @@ async def get_ai_response(request: ChatRequest, use_rag=False):
         for notice_id in request.notice_ids:
             target_notice = db.get_notice_content(notice_id)
             if target_notice:
+                logger.info(f"检测到用户指定资讯：{target_notice['title']}")
                 context += f"\n资讯标题：{target_notice['title']}"
                 context += f"\n资讯正文：{target_notice['content_text']}"
                 context += f"\n资讯日期：{target_notice['date']}"
@@ -86,6 +87,9 @@ async def get_ai_response(request: ChatRequest, use_rag=False):
     messages = PromptEngine.build_chat_prompt(
         request.history, request.user_query, context
     )
+
+    if db.get_system_setting("prompt_debug"):
+        logger.debug(messages)
 
     # 调用 OpenAI/DeepSeek API
     logger.info("调用Deepseek API...")
