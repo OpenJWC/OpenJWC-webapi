@@ -23,10 +23,10 @@ async def create_api_key(
     logger.info(f"Request ID: {admin_info['x_request_id']}")
     logger.info(f"Client Version: {admin_info['x_client_version']}")
     try:
-        db.create_api_key(request.owner_name, request.max_devices)
-        return ResponseModel(msg="Apikey创建成功。", data={})
+        new_key = db.create_api_key(request.owner_name, request.max_devices)
+        return ResponseModel(msg="Apikey创建成功。", data={"new_key": new_key})
     except Exception:
-        return ResponseModel(msg="Apikey创建失败：未知错误。", data={})
+        return ResponseModel(msg="Apikey创建失败：未知错误。", data={"new_key": ""})
 
 
 @router.delete("/{key_id}", response_model=ResponseModel)
@@ -73,7 +73,7 @@ async def toggle_apikey(
     admin_info: dict = Depends(verify_admin_token),
 ):
     """
-    创建新的apikey。
+    启停apikey。
     """
     logger.info(f"Request ID: {admin_info['x_request_id']}")
     logger.info(f"Client Version: {admin_info['x_client_version']}")
