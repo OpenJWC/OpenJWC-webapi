@@ -1,0 +1,60 @@
+.
+├── app
+│   ├── api
+│   │   ├── __init__.py
+│   │   ├── dependencies.py
+│   │   ├── logging_route.py
+│   │   └── v1
+│   │       ├── __init__.py
+│   │       ├── admin
+│   │       │   ├── __init__.py
+│   │       │   ├── apikeys.py
+│   │       │   ├── auth.py
+│   │       │   ├── logs.py
+│   │       │   ├── monitor.py
+│   │       │   ├── notices.py
+│   │       │   ├── settings.py
+│   │       │   └── submission.py
+│   │       ├── api_router.py
+│   │       └── client
+│   │           ├── __init__.py
+│   │           ├── chat.py
+│   │           ├── device.py
+│   │           ├── notices.py
+│   │           └── submission.py
+│   ├── core
+│   │   ├── config.py
+│   │   └── security.py
+│   ├── crawler_wrapper.py
+│   ├── models
+│   │   ├── __init__.py
+│   │   ├── models.py
+│   │   └── schemas.py
+│   ├── services
+│   │   ├── __init__.py
+│   │   ├── ai_service.py
+│   │   ├── db_interface.py
+│   │   ├── prompt_engine.py
+│   │   ├── sql_db_service.py
+│   │   ├── sql_mixins
+│   │   │   ├── admin_mixin.py
+│   │   │   ├── device_mixin.py
+│   │   │   ├── notice_mixin.py
+│   │   │   ├── submission_mixin.py
+│   │   │   └── validation_mixin.py
+│   │   ├── submission_service.py
+│   │   └── vector_db_service.py
+│   └── utils
+│       ├── logging_manager.py
+│       ├── openjwc_cli.py
+│       ├── ping_check.py
+│       └── sysinfo_monitor.py
+├── bin
+├── data
+├── LICENSE
+├── logs
+├── main.py
+├── pyproject.toml
+├── README.md
+├── structure.txt
+└── uv.lock

@@ -53,7 +53,12 @@ async def call_llm_with_retry(messages: list, stream: bool):
 async def get_ai_response(request: ChatRequest, use_rag=False):
     context = ""
     if request.notice_ids:
-        context += "\n用户指定了以下资讯，请你对这些资讯的信息更加注意。请你格外注意站在用户的视角看待资讯，用户只能看到他们自己选中的资讯。所以用户问题中的一些代词可能特指他们自己选中的资讯："
+        context += """
+\n用户指定了以下资讯，请你对这些资讯的信息更加注意。
+请你格外注意站在用户的视角看待资讯，用户只能看到他们自己选中的资讯。
+所以对于"这篇"或"那篇"这样的代词实际应为用户自身指定的资讯。
+对于此类情形，你不必向用户求证，优先默认其为用户最新选中的资讯：
+"""
         for notice_id in request.notice_ids:
             target_notice = db.get_notice_content(notice_id)
             if target_notice:
