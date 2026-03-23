@@ -27,9 +27,16 @@ class SubmissionMixin:
             INSERT INTO submissions (id, label, title, date, detail_url, is_page, content_text, attachments, submitter_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
-        if len(submission.content.text) > int(
-            self.get_system_setting("submission_max_length")
-        ):
+        maxi_length = max(
+            len(submission.label),
+            len(submission.title),
+            len(submission.detail_url),
+            len(submission.content.text),
+            len(
+                json.dumps(submission.content.attachment_urls, ensure_ascii=False),
+            ),
+        )
+        if maxi_length > int(self.get_system_setting("submission_max_length")):
             logger.warning(
                 f"用户投稿文字量超过最大限制：{int(self.get_system_setting('submission_max_length'))}"
             )
