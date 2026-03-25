@@ -20,7 +20,12 @@ async def get_motto(valid_token: str = Depends(verify_api_key)):
     if success:
         return ResponseModel(
             msg="每日一言获取成功",
-            data={"text": data["motto_content"], "author": data["motto_author"]},
+            data={
+                "text": data["motto_content"],
+                "author": data["motto_author"]
+                if data["motto_author"] != "佚名"
+                else None,
+            },
         )
     return ResponseModel(
         msg="每日一言获取失败",
