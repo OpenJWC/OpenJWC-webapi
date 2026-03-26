@@ -46,6 +46,29 @@ async def verify_api_key(
     return token
 
 
+async def optional_verify_api_key(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    x_device_id: str = Header(..., description="移动端设备的唯一标识 UUID"),
+) -> str:
+    """
+    可选鉴权，如果系统设置了true则鉴权，否则不鉴权。
+    """
+    token = credentials.credentials
+    is_valid, error_msg = db.validate_and_use_key(token, x_device_id)
+
+    if not is_valid and db.get_system_setting("notices_auth") != "0":
+        logger.warning(
+            f"鉴权拦截 - Token: {token[:8]}... 设备: {x_device_id} 原因: {error_msg}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=error_msg,
+        )
+
+    logger.debug(f"鉴权通过 - Token: {token[:8]}... 设备: {x_device_id}")
+    return token
+
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/admin/auth/login")
 
 

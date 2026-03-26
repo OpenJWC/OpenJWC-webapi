@@ -91,7 +91,7 @@ async def get_ai_response(request: ChatRequest, use_rag=False):
         request.history, request.user_query, context
     )
 
-    if bool(db.get_system_setting("prompt_debug")):
+    if db.get_system_setting("prompt_debug") != "0":
         logger.debug(messages)
 
     # 调用 OpenAI/DeepSeek API

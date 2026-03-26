@@ -17,6 +17,7 @@ ALLOWED_SETTINGS = {
     "crawler_days_gap": 200,
     "search_max_day_diff": 60,
     "prompt_debug": False,
+    "notices_auth": False,
     "prompt_preview_length": 500,
     "submission_max_length": 10000,
     "system_prompt": """
