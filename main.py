@@ -11,7 +11,7 @@ import os
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("正在启动服务...")
-
+    db.sync_admins_from_config()
     api_targets = ["https://api.deepseek.com", "https://open.bigmodel.cn"]
     is_network_healthy = await diagnose_network_environment(api_targets)
     if not is_network_healthy:
