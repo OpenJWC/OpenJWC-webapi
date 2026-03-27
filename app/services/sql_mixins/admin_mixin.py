@@ -27,7 +27,7 @@ class AdminMixin:
         """
         if not os.path.exists(ADMIN_CONFIG_PATH):
             return False
-
+        logger.info("管理员初始化配置成功读取")
         with open(ADMIN_CONFIG_PATH, "r") as f:
             admin_lists = json.load(f)
 
@@ -38,11 +38,13 @@ class AdminMixin:
             password = admin_info["password"]
             if not self.get_admin_user(username):
                 self.create_admin(username, password)
+                logger.info(f"管理员{username}账号初始化成功，密码为{password}")
 
         existing_admins = self.get_all_admins()
         for admin in existing_admins:
             if admin["user_name"] not in admin_usernames:
                 self.delete_admin(admin["user_name"])
+                logger.info(f"管理员{username}账号删除成功")
 
         return True
 
