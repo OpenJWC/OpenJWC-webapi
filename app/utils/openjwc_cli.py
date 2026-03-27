@@ -66,6 +66,8 @@ class SQLCLI(cmd2.Cmd):
         elif args[0] == "submissions":
             status = args[1]
             print(db.get_submissions_by_status(status))
+        elif args[0] == "admins":
+            print(db.get_all_admins())
 
     def do_audit(self, arg: str):
         args = arg.split()
@@ -78,6 +80,7 @@ class SQLCLI(cmd2.Cmd):
         check: 查看一个admin账号的状态。
         delete: 删除一个admin账号。
         mdpw: 修改admin账号的密码。
+        sync: 按照配置文件单向同步管理员账号。
         """
         args = arg.split()
         if args[0] == "check":
@@ -86,6 +89,8 @@ class SQLCLI(cmd2.Cmd):
             logger.info(db.delete_admin(args[1]))
         elif args[0] == "mdpw":
             logger.info(db.modify_password(args[1], args[2]))
+        elif args[0] == "sync":
+            logger.info(db.sync_admins_from_config())
 
     def do_toggle(self, arg: str):
         """

@@ -1,11 +1,51 @@
 from typing import Dict, Optional
 from app.services.db_interface import DBInterface, logger
 from app.core.security import get_password_hash
-from app.core.config import ALLOWED_SETTINGS
+from app.core.config import ALLOWED_SETTINGS, ADMIN_CONFIG_PATH
+import os
+import json
 
 
 class AdminMixin:
     # 管理员鉴权
+    def get_all_admins(self: DBInterface) -> list[dict]:
+        """
+        获取数据库中所有的管理员账号
+        :return: 包含所有管理员信息的字典列表
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT user_name, hashed_password FROM admin_users")
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    def sync_admins_from_config(self: DBInterface) -> bool:
+        """
+        从配置文件单向同步管理员名单
+        只保留配置中出现的管理员，配置中未出现的管理员账号会被删除
+        :return: 同步成功返回True，配置文件不存在返回False
+        """
+        if not os.path.exists(ADMIN_CONFIG_PATH):
+            return False
+
+        with open(ADMIN_CONFIG_PATH, "r") as f:
+            admin_lists = json.load(f)
+
+        admin_usernames = []
+        for admin_info in admin_lists:
+            username = admin_info["username"]
+            admin_usernames.append(username)
+            password = admin_info["password"]
+            if not self.get_admin_user(username):
+                self.create_admin(username, password)
+
+        existing_admins = self.get_all_admins()
+        for admin in existing_admins:
+            if admin["user_name"] not in admin_usernames:
+                self.delete_admin(admin["user_name"])
+
+        return True
+
     def get_admin_user(self: DBInterface, username: str) -> Optional[dict]:
         """
         供登录接口验证账号密码使用

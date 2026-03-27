@@ -3,6 +3,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = ROOT_DIR / "data"
 BIN_DIR = ROOT_DIR / "bin"
+ADMIN_CONFIG_PATH = ROOT_DIR / "admins.json"
 NOTICE_DB = DATA_DIR / "jwc_notices.db"
 NOTICE_JSON = DATA_DIR / "output.json"
 CRAWLER_BIN = BIN_DIR / "jwc-crawler"
@@ -11,8 +12,8 @@ LOGS_DIR = ROOT_DIR / "logs"
 MAX_DAY_DIFF = 300
 ACCESS_TOKEN_EXPIRE_MINUTES = 5
 ALLOWED_SETTINGS = {
-    "deepseek_api_key": "sk-52a7c611c8a54542ba2f4325377279ee",
-    "zhipu_api_key": "76aef7991f3b44689985247df4177797.yVOdY7eqKISkhT02",
+    "deepseek_api_key": "this_is_your_dpsk_key",
+    "zhipu_api_key": "this_is_your_glm_key",
     "crawler_interval_minutes": 60 * 8,
     "crawler_days_gap": 200,
     "search_max_day_diff": 60,

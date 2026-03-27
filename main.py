@@ -11,12 +11,7 @@ import os
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("正在启动服务...")
-    admin_user = os.getenv("INIT_ADMIN_USER")
-    admin_pass = os.getenv("INIT_ADMIN_PASS")
-    if admin_user and admin_pass:
-        if not db.get_admin_user(admin_user):
-            logger.info("未初始化管理员账号，尝试读取环境变量进行初始化..")
-            db.create_admin(admin_user, admin_pass)
+
     api_targets = ["https://api.deepseek.com", "https://open.bigmodel.cn"]
     is_network_healthy = await diagnose_network_environment(api_targets)
     if not is_network_healthy:
