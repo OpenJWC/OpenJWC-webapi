@@ -20,6 +20,7 @@ def sync_vector_db():
         total_count = len(all_notices)
         logger.info(f"从 SQL 数据库读取到 {total_count} 条记录，准备核对向量库。")
         new_embedded_count = 0
+        new_no_content_count = 0
         for notice in all_notices:
             is_new = vector_db.process_and_index_notice(
                 {
@@ -31,10 +32,12 @@ def sync_vector_db():
             )
             if is_new:
                 new_embedded_count += 1
+                if notice["content_text"] is None:
+                    new_no_content_count += 1
 
         vector_db.sync_vector_db_metadata()
         logger.info(
-            f"向量库同步完成！跳过了 {total_count - new_embedded_count} 条，实际新增向量化 {new_embedded_count} 条。"
+            f"向量库同步完成！跳过了 {total_count - new_embedded_count} 条，实际新增向量化 {new_embedded_count} 条（其中无正文 {new_no_content_count} 条）。"
         )
 
     except Exception as e:

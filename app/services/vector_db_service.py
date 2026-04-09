@@ -183,6 +183,76 @@ class VectorDBService:
         logger.info(f"元信息同步完成，共更新 {updated_count} 个chunks")
         return True
 
+    def search_with_metadata(
+        self, query: str, n_results: int = 10, min_similarity: float = None
+    ) -> list[dict]:
+        """
+        语义搜索，返回带元数据和相似度分数的结果
+
+        Args:
+            query: 搜索文本
+            n_results: 最大返回数量
+            min_similarity: 最低相似度阈值（0-1），None表示使用系统默认值
+
+        Returns:
+            list[dict]: [{"id", "label", "title", "date", "detail_url", "is_page", "similarity_score", "distance"}, ...]
+        """
+        query_vector = self.get_embedding(f"{query}, 今日日期{date.today()}")
+        cutoff_date = date.today() - timedelta(
+            days=int(db.get_system_setting("search_max_day_diff"))
+        )
+        cutoff_date_str = cutoff_date.strftime("%Y-%m-%d")
+        cutoff_date_int = int(cutoff_date.strftime("%Y%m%d"))
+
+        where_clause = {
+            "$and": [
+                {"date_int": {"$gte": cutoff_date_int}},
+                {"in_notices_table": {"$eq": True}},
+            ]
+        }
+
+        results = collection.query(
+            query_embeddings=[query_vector],
+            n_results=n_results,
+            where=where_clause,
+            include=["metadatas", "distances"],
+        )
+
+        if not results.get("ids") or not results["ids"][0]:
+            logger.warning("知识库中暂无相关资讯")
+            return []
+
+        result_list = []
+        for i in range(len(results["ids"][0])):
+            source_id = results["metadatas"][0][i]["source_id"]
+            distance = results["distances"][0][i]
+
+            similarity = 1 / (1 + distance)
+            if min_similarity is not None and similarity < min_similarity:
+                continue
+
+            notice_info = db.get_notice_info(source_id)
+            if notice_info is None:
+                continue
+
+            result_list.append(
+                {
+                    "id": source_id,
+                    "label": notice_info["label"],
+                    "title": notice_info["title"],
+                    "date": notice_info["date"],
+                    "detail_url": notice_info["detail_url"],
+                    "is_page": notice_info["is_page"],
+                    "similarity_score": similarity,
+                    "distance": distance,
+                }
+            )
+
+        logger.info(
+            f"搜索到 {len(result_list)} 条相关资讯（共检索到 {len(results['ids'][0])} 条）"
+        )
+        return result_list
+
     def search(self, query: str, n_results: int = 10) -> str:
         """语义搜索"""
         query_vector = self.get_embedding(f"{query}, 今日日期{date.today()}")
@@ -191,7 +261,6 @@ class VectorDBService:
         )
         cutoff_date_str = cutoff_date.strftime("%Y-%m-%d")
         cutoff_date_int = int(cutoff_date.strftime("%Y%m%d"))
-        # 使用 AND 逻辑组合多个条件
         where_clause = {
             "$and": [
                 {"date_int": {"$gte": cutoff_date_int}},
@@ -199,7 +268,10 @@ class VectorDBService:
             ]
         }
         results = collection.query(
-            query_embeddings=[query_vector], n_results=n_results, where=where_clause
+            query_embeddings=[query_vector],
+            n_results=n_results,
+            where=where_clause,
+            include=["documents"],
         )
         if not results.get("documents") or not results["documents"][0]:
             logger.warning("知识库中暂无相关资讯")
@@ -228,13 +300,17 @@ class VectorDBService:
             return False
         content = notice["content_text"]
         if content is None:
-            logger.info(f"资讯[{notice['title']}]无正文信息，跳过")
-            return False
-        chunk_size = 500
-        chunks = [
-            f"资讯标题：{notice['title']};资讯日期：{notice['date']};资讯正文：{content[max(i - 50, 0) : min(i + chunk_size + 50, len(content))]}"
-            for i in range(0, len(content), chunk_size)
-        ]
+            logger.info(f"资讯[{notice['title']}]无正文，使用标题和日期进行向量化")
+            text_for_embedding = (
+                f"资讯标题：{notice['title']};资讯日期：{notice['date']}"
+            )
+            chunks = [text_for_embedding]
+        else:
+            chunk_size = 500
+            chunks = [
+                f"资讯标题：{notice['title']};资讯日期：{notice['date']};资讯正文：{content[max(i - 50, 0) : min(i + chunk_size + 50, len(content))]}"
+                for i in range(0, len(content), chunk_size)
+            ]
         logger.info(f"开始处理并向量化新资讯 [{notice['title']}]...")
         for i, chunk in enumerate(chunks):
             chunk_id = f"{notice_id}_chunk_{i}"
@@ -249,6 +325,7 @@ class VectorDBService:
                     "date": notice["date"],
                     "date_int": int(notice["date"].replace("-", "")),
                     "in_notices_table": True,
+                    "has_content": content is not None,
                 },
             )
         logger.info(f"资讯 [{notice['title']}] 入库完成。")

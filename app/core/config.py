@@ -17,6 +17,7 @@ ALLOWED_SETTINGS = {
     "crawler_interval_minutes": 60 * 8,
     "crawler_days_gap": 200,
     "search_max_day_diff": 60,
+    "search_min_similarity": 0.3,
     "prompt_debug": False,
     "notices_auth": False,
     "prompt_preview_length": 500,

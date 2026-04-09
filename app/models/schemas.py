@@ -89,3 +89,20 @@ class UpdateSettingModel(BaseModel):
 
 class UpdateSettingRequest(BaseModel):
     settings: List[UpdateSettingModel]
+
+
+class SemanticSearchRequest(BaseModel):
+    query: str  # 搜索文本
+    top_k: int = 5  # 返回结果数量上限
+    min_similarity: float = None  # 最低相似度阈值，可选，不填则使用系统默认值
+
+
+class SemanticSearchResult(BaseModel):
+    id: str
+    label: Optional[str] = None
+    title: str
+    date: str
+    detail_url: str
+    is_page: bool
+    similarity_score: float  # 相似度分数（0-1，越高越相似）
+    distance: float  # ChromaDB 返回的原始距离

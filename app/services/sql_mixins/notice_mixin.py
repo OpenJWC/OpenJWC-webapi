@@ -165,6 +165,21 @@ class NoticeMixin:
             row = cursor.fetchone()
             return dict(row) if row else None
 
+    def get_notice_info(self: DBInterface, notice_id: str) -> Optional[dict]:
+        """获取资讯的完整信息（包括元数据）"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id, label, title, date, detail_url, is_page FROM notices WHERE id = ?",
+                (notice_id,),
+            )
+            row = cursor.fetchone()
+            if row:
+                result = dict(row)
+                result["is_page"] = bool(result["is_page"])
+                return result
+            return None
+
     def get_total_labels(self: DBInterface) -> int:
         """获取标签总数"""
         with self.get_connection() as conn:
